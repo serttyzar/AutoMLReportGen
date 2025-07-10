@@ -1,0 +1,53 @@
+<h1>Отчет об ML-эксперименте</h1>
+
+<p><strong>Run ID</strong>: 1585586a85094237ae6dc6285fd9635c<br />
+<strong>Дата</strong>: 1752137781414</p>
+
+<h2>Параметры</h2>
+
+<ul>
+<li><p><strong>batch_size</strong>: 64</p></li>
+<li><p><strong>encoding_dim</strong>: 32</p></li>
+<li><p><strong>epochs</strong>: 50</p></li>
+<li><p><strong>intermediate_dim1</strong>: 128</p></li>
+<li><p><strong>intermediate_dim2</strong>: 64</p></li>
+<li><p><strong>learning_rate</strong>: 0.001</p></li>
+<li><p><strong>loss_function</strong>: MeanSquaredError</p></li>
+<li><p><strong>optimizer</strong>: Adam</p></li>
+<li><p><strong>random_state</strong>: 42</p></li>
+</ul>
+
+<h2>Метрики</h2>
+
+<ul>
+<li><p><strong>AUC</strong>: 0.9750277592715967</p></li>
+<li><p><strong>EER</strong>: 0.06454030646235842</p></li>
+<li><p><strong>EER_threshold</strong>: 0.020139831686652763</p></li>
+<li><p><strong>training_loss</strong>: 0.008769541047513485</p></li>
+<li><p><strong>validation_loss</strong>: 0.010720916092395782</p></li>
+</ul>
+
+<h2>Сравнение с предыдущим запуском</h2>
+
+<p>| Метрика | Предыдущее | Текущее | Δ |
+|--------|-------------|---------|---|</p>
+
+<p>| AUC | 0.9831889851210304 | 0.9750277592715967 | -0.0082 |</p>
+
+<p>| EER | 0.051632245169886765 | 0.06454030646235842 | 0.0129 |</p>
+
+<p>| EER_threshold | 0.021930348307235083 | 0.020139831686652763 | -0.0018 |</p>
+
+<p>| training_loss | 0.008968156762421131 | 0.008769541047513485 | -0.0002 |</p>
+
+<p>| validation_loss | 0.010474616661667824 | 0.010720916092395782 | 0.0002 |</p>
+
+<h2>Интерпретация и рекомендации</h2>
+
+<ul>
+<li><p>Метрика AUC изменилась незначительно (-0.0082).</p></li>
+<li><p>Метрика EER улучшилась на 0.0129. Возможная причина: параметры: {'batch<em>size': '64', 'encoding</em>dim': '32', 'epochs': '50', 'intermediate<em>dim1': '128', 'intermediate</em>dim2': '64', 'learning<em>rate': '0.001', 'loss</em>function': 'MeanSquaredError', 'optimizer': 'Adam', 'random_state': '42'}.</p></li>
+<li><p>Метрика EER_threshold изменилась незначительно (-0.0018).</p></li>
+<li><p>Метрика training_loss изменилась незначительно (-0.0002).</p></li>
+<li><p>Метрика validation_loss изменилась незначительно (0.0002).</p></li>
+</ul>

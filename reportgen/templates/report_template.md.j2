@@ -1,0 +1,30 @@
+# Отчет об ML-эксперименте
+
+**Run ID**: {{ run.run_id }}  
+**Дата**: {{ run.start_time }}
+
+## Параметры
+{% for k, v in run.params.items() %}
+- **{{ k }}**: {{ v }}
+{% endfor %}
+
+## Метрики
+{% for k, v in run.metrics.items() %}
+- **{{ k }}**: {{ v }}
+{% endfor %}
+
+## Сравнение с предыдущим запуском
+{% if comparison.message %}
+{{ comparison.message }}
+{% else %}
+| Метрика | Предыдущее | Текущее | Δ |
+|--------|-------------|---------|---|
+{% for k, v in comparison.items() %}
+| {{ k }} | {{ v.previous }} | {{ v.current }} | {{ v.delta }} |
+{% endfor %}
+{% endif %}
+
+## Интерпретация и рекомендации
+{% for item in analysis %}
+- {{ item }}
+{% endfor %}
