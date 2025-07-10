@@ -1,0 +1,5 @@
+.venv
+examples/*
+!examples/.gitkeep
+outputs/*
+!outputs/.gitkeep
