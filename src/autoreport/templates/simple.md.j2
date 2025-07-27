@@ -1,0 +1,43 @@
+# AutoReport: {{ exp.run_name }}
+
+**Run ID:** `{{ exp.run_id }}`  
+**Timestamp:** {{ now }}  
+**Duration:** {{ "%.2f"|format(exp.duration_s) }} s  
+
+## Code Snippet
+{{ exp.code }}
+
+
+{% if exp.metrics %}
+## Metrics
+| name | value |
+|------|------:|
+{% for k, v in exp.metrics.items() %}
+| {{ k }} | {{ "%.4f"|format(v) }} |
+{% endfor %}
+{% endif %}
+
+{% if exp.figures %}
+## Figures
+{% for f in exp.figures %}
+![{{ f.name }}](./{{ exp.run_id }}_figs/{{ f.name }})
+{% endfor %}
+{% endif %}
+
+{% if exp.stdout %}
+## Stdout
+{{ exp.stdout }}
+
+{% endif %}
+
+{% if exp.stderr %}
+## Stderr
+{{ exp.stderr }}
+
+{% endif %}
+
+{% if exp.error %}
+## Exception
+{{ exp.error }}
+
+{% endif %}
