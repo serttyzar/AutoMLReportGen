@@ -1,23 +1,21 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "autoreport"
+name = "automlreportgen"
 version = "0.1.0"
-description = "Lightweight auto-report generator for ML experiments in Jupyter"
-authors = [{name = "serttyzar", email = "serttyzar@gmail.com"}]
+description = "Auto ML Report Generator (MVP)"
 readme = "README.md"
-requires-python = ">=3.9"
-
+requires-python = ">=3.10"
 dependencies = [
-    "ipython>=8.0",
-    "jinja2>=3.1",
-    "matplotlib>=3.7",
-    "numpy>=1.24",
-    "pandas>=2.0",
-    "scikit-learn>=1.3"
+"pydantic>=2.3",
+"jinja2>=3.1",
+"typer>=0.12",
+"matplotlib>=3.7",
+"seaborn>=0.13",
+"scikit-learn>=1.3",
 ]
 
 [project.scripts]
-autoreport-demo = "autoreport.demo:run"
+automlreportgen = "autoreport.cli:run"

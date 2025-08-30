@@ -3,3 +3,8 @@ examples/*
 !examples/.gitkeep
 outputs/*
 !outputs/.gitkeep
+export/*
+reports/*
+tests/*
+.autoreport_cache
+automlreportgen.egg-info

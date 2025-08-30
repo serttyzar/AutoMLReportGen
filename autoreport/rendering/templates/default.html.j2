@@ -1,0 +1,67 @@
+<!-- default.html.j2 -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>AutoMLReportGen 2.0 — {{ run.name }}</title>
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;margin:24px;color:#222}
+    h1,h2{margin:0 0 12px 0}
+    table{border-collapse:collapse;margin:12px 0}
+    th,td{border:1px solid #ddd;padding:6px 10px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+    .muted{color:#666;font-size:0.9em}
+    .chip{display:inline-block;padding:2px 8px;border-radius:12px;background:#eef}
+  </style>
+</head>
+<body>
+  <h1>Отчёт: {{ run.name }}</h1>
+  <div class="muted">Сформировано: {{ now }}</div>
+
+  <h2>Executive summary</h2>
+  <ul>
+    {% if run.metrics %}
+      {% set main = (run.metrics.get('roc_auc') or run.metrics.get('f1_w') or run.metrics.get('accuracy') or run.metrics.get('r2')) %}
+      {% if main %}<li>Ключевая метрика: <b>{{ main.name }}</b> = {{ main.value|fmt }}</li>{% endif %}
+    {% else %}
+      <li>Метрики отсутствуют</li>
+    {% endif %}
+  </ul>
+
+  <h2>Метрики</h2>
+  {% if run.metrics %}
+    <table>
+      <thead><tr><th>Метрика</th><th>Значение</th></tr></thead>
+      <tbody>
+      {% for k, m in run.metrics.items() %}
+        <tr><td>{{ k }}</td><td>{{ m.value|fmt }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="muted">Нет метрик</div>
+  {% endif %}
+
+  <h2>Фигуры</h2>
+  {% if run.artifacts %}
+    <div class="grid">
+      {% for a in run.artifacts %}
+        <div>
+          <div class="muted">{{ a.name }}</div>
+          <img src="{{ a.path }}" style="max-width:100%"/>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="muted">Нет артефактов</div>
+  {% endif %}
+
+  <h2>Логи</h2>
+  <div><span class="chip">stdout</span></div>
+  <pre>{{ run.stdout }}</pre>
+  <div><span class="chip">stderr</span></div>
+  <pre>{{ run.stderr }}</pre>
+  {% if run.error %}<div class="chip" style="background:#fee">error</div><pre>{{ run.error }}</pre>{% endif %}
+  <div class="muted">Длительность: {{ run.duration_s }} c</div>
+</body>
+</html>
