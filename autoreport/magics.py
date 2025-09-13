@@ -6,9 +6,9 @@ from pathlib import Path
 from .capture.runtime import RuntimeCapture
 from .tracker import run_experiment
 from .io.json_source import save_run
-from .rendering.renderer import render_html
-
-
+from .rendering.renderer import render_report_with_bundle
+import sys
+           
 @magics_class
 class AutoReportMagics(Magics):
     @line_cell_magic
@@ -22,11 +22,30 @@ class AutoReportMagics(Magics):
 
         ipy = get_ipython()
         user_ns = ipy.user_ns
-        code = textwrap.dedent(cell or "")
-
+        
+        code_cell = textwrap.dedent(cell or "")
+        
+        # 🔧 ИСПРАВЛЕНИЕ: Защита от пустой ячейки
+        if not code_cell.strip():
+            code_cell = "# Генерация отчёта по всему ноутбуку"
+        
         with RuntimeCapture() as rc:
-            exec(code, user_ns)
+            exec(code_cell, user_ns)
 
+        # Собираем всю историю In[] из ноутбука
+        try:
+            inputs = getattr(ipy, 'user_ns', {}).get('In', None) or ipy.user_ns.get('In', [])
+            if inputs and len(inputs) > 1:
+                full_code = "\n\n# === Cell {} ===\n".join(
+                    f"{i}\n{str(cell)}" for i, cell in enumerate(inputs[1:], 1)
+                )
+            else:
+                full_code = code_cell
+            sys.__stdout__.write(full_code + "\n")
+        except Exception:
+            full_code = code_cell  # fallback
+        sys.__stdout__.write('wqefwef' + "\n")
+        # Legacy переменные y_* → y_*_main
         for kind in ("true", "pred", "prob"):
             src = f"y_{kind}"
             dst = f"y_{kind}_{args.label}"
@@ -34,7 +53,7 @@ class AutoReportMagics(Magics):
                 user_ns[dst] = user_ns[src]
 
         run = run_experiment(
-            code=code, namespace=user_ns, run_name=args.name,
+            code=full_code, namespace=user_ns, run_name=args.name,
             stdout=rc.stdout, stderr=rc.stderr, error=rc.error, duration_s=rc.duration_s
         )
 
@@ -42,11 +61,12 @@ class AutoReportMagics(Magics):
         save_run(run, export_dir)
 
         template_dir = Path(__file__).resolve().parent / "rendering" / "templates"
-        context = {"run": run.model_dump()}
-        out_path = Path(args.outdir) / run.id / "index.html"
-        render_html(template_dir, args.template, context, out_path)
-        print(f"Report ready: {out_path}")
+        report_dir = Path(args.outdir) / run.id
+        render_report_with_bundle(
+            template_dir, args.template, {"run": run.model_dump()}, 
+            report_dir=report_dir, bundle_mode="copy"
+        )
+        print(f"Report ready: {report_dir / 'index.html'}")
 
-# ВНЕ класса:
 def load_ipython_extension(ip):
     ip.register_magics(AutoReportMagics)
