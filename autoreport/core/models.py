@@ -16,7 +16,7 @@ class MetricSeries(BaseModel):
 
 class Artifact(BaseModel):
     name: str
-    path: Path
+    path: str  # changed to str to simplify JSON and template usage
     kind: str = "figure" # figure|file|model|other
     mime: Optional[str] = None
     sha256: Optional[str] = None
@@ -48,7 +48,7 @@ class AnalysisResult(BaseModel):
     comparison_table: List[Dict[str, Any]] = Field(default_factory=list)
     sanity_findings: List[Dict[str, Any]] = Field(default_factory=list)
     risk_level: str = "low"
-    charts: Dict[str, Path] = Field(default_factory=dict)
+    charts: Dict[str, str] = Field(default_factory=dict)
     recommendations: List[str] = Field(default_factory=list)
 
 class SummaryItem(BaseModel):

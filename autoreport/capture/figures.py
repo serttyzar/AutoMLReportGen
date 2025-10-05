@@ -21,17 +21,27 @@ class FigureManager:
             fig.savefig(tmp_path, dpi=dpi, bbox_inches="tight")
             sha = sha256_file(tmp_path)
             if sha is None:
+                try:
+                    tmp_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
                 continue
             subdir = self.cache_dir / "artifacts" / sha[:2]
             subdir.mkdir(parents=True, exist_ok=True)
             final_path = subdir / f"{sha}.{image_format}"
             if not final_path.exists():
-                os.replace(tmp_path, final_path)
+                try:
+                    os.replace(tmp_path, final_path)
+                except Exception:
+                    # fallback to copy
+                    import shutil
+                    shutil.copy2(tmp_path, final_path)
+                    tmp_path.unlink(missing_ok=True)
             else:
                 tmp_path.unlink(missing_ok=True)
             artifacts.append(Artifact(
                 name=f"figure_{num}",
-                path=final_path,
+                path=str(final_path.as_posix()),
                 kind="figure",
                 sha256=sha,
                 size_bytes=final_path.stat().st_size

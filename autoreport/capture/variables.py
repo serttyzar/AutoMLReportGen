@@ -1,6 +1,7 @@
 from typing import Dict, Any, Tuple, List
 import numpy as np
 
+
 def discover_labels(namespace: Dict[str, Any]) -> List[str]:
     keys = list(namespace.keys())
     labels = set()
@@ -13,6 +14,7 @@ def discover_labels(namespace: Dict[str, Any]) -> List[str]:
             labels.add(k[len("y_prob_"):])
     return sorted(labels)
 
+
 def extract_predictions(namespace: Dict[str, Any]) -> Dict[str, Dict[str, np.ndarray]]:
     result: Dict[str, Dict[str, np.ndarray]] = {}
     labels = discover_labels(namespace)
@@ -21,8 +23,11 @@ def extract_predictions(namespace: Dict[str, Any]) -> Dict[str, Dict[str, np.nda
         for kind in ("true", "pred", "prob"):
             name = f"y_{kind}_{lbl}"
             if name in namespace:
-                arr = np.asarray(namespace[name])
-                entry[kind] = arr
+                try:
+                    arr = np.asarray(namespace[name])
+                    entry[kind] = arr
+                except Exception:
+                    continue
         if entry:
             result[lbl] = entry
     return result
