@@ -21,7 +21,6 @@ class Artifact(BaseModel):
     mime: Optional[str] = None
     sha256: Optional[str] = None
     size_bytes: Optional[int] = None
-    meta: Optional[Dict[str, Any]] = None
 
 class Run(BaseModel):
     id: str

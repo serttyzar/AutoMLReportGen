@@ -59,12 +59,16 @@
             <div style="margin-top:8px">
               <div class="muted">Графики:</div>
               {% for a in run.artifacts %}
-                {% if a.name.startswith('figure_') %}
-                  <div style="margin-top:6px">
-                    <img class="figure" src="{{ a.path }}" alt="{{ a.name }}"/>
-                    <div class="muted">{{ a.name }}</div>
+                <div style="margin-top:6px">
+                  <img class="figure" src="{{ a.path }}" alt="{{ a.name }}"/>
+                  <div class="muted">
+                    {{ a.name }}
+                    {% if a.meta %}
+                      — модель: <b>{{ a.meta.model }}</b>,
+                      данные: <b>{{ a.meta.data or 'неизвестно' }}</b>
+                    {% endif %}
                   </div>
-                {% endif %}
+                </div>
               {% endfor %}
             </div>
           </div>
