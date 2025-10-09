@@ -1,0 +1,2 @@
+[console_scripts]
+autoreport = autoreport.cli:run

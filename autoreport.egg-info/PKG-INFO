@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: autoreport
+Version: 0.1.0
+Summary: Auto ML Report Generator (MVP)
+Requires-Python: >=3.10
+Requires-Dist: pydantic>=2.3
+Requires-Dist: jinja2>=3.1
+Requires-Dist: typer>=0.12
+Requires-Dist: matplotlib>=3.7
+Requires-Dist: seaborn>=0.13
+Requires-Dist: scikit-learn>=1.3

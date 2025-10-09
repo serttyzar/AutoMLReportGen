@@ -1,0 +1,7 @@
+pyproject.toml
+autoreport.egg-info/PKG-INFO
+autoreport.egg-info/SOURCES.txt
+autoreport.egg-info/dependency_links.txt
+autoreport.egg-info/entry_points.txt
+autoreport.egg-info/requires.txt
+autoreport.egg-info/top_level.txt

@@ -1,13 +1,29 @@
+# autoreport/magics.py
 from IPython.core.magic import Magics, magics_class, line_cell_magic
 from IPython import get_ipython
 from argparse import ArgumentParser
 import textwrap
 from pathlib import Path
-from .capture.runtime import RuntimeCapture
-from .tracker import run_experiment
-from .io.json_source import save_run
-from .rendering.renderer import render_report_with_bundle
 import sys
+import os
+
+# Make imports robust for running from source
+_this_dir = Path(__file__).resolve().parent
+_project_root = _this_dir.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
+try:
+    from autoreport.capture.runtime import RuntimeCapture
+    from autoreport.tracker import run_experiment
+    from autoreport.io.json_source import save_run
+    from autoreport.rendering.renderer import render_report_with_bundle
+except Exception:
+    # fallback (rare)
+    from .capture.runtime import RuntimeCapture  # type: ignore
+    from .tracker import run_experiment  # type: ignore
+    from .io.json_source import save_run  # type: ignore
+    from .rendering.renderer import render_report_with_bundle  # type: ignore
 
 
 @magics_class
@@ -53,9 +69,11 @@ class AutoReportMagics(Magics):
         except Exception:
             full_code = code_cell
 
+        # Передаём в run_experiment и — очень важно — отдаём артефакты, захваченные RuntimeCapture
         run = run_experiment(
             code=full_code, namespace=user_ns, run_name=args.name,
-            stdout=rc.stdout, stderr=rc.stderr, error=rc.error, duration_s=rc.duration_s
+            stdout=rc.stdout, stderr=rc.stderr, error=rc.error, duration_s=rc.duration_s,
+            artifacts=getattr(rc, "artifacts", None)
         )
 
 
@@ -70,9 +88,6 @@ class AutoReportMagics(Magics):
         report_dir=report_dir, bundle_mode="copy"
         )
         print(f"Report ready: {report_dir / 'index.html'}")
-
-
-
 
 def load_ipython_extension(ip):
     ip.register_magics(AutoReportMagics)
