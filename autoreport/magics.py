@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 import textwrap
 from pathlib import Path
 from .capture.runtime import RuntimeCapture
-from .tracker import run_experiment, inject_autopreds
+from .tracker import run_experiment
 from .io.json_source import save_run
 from .rendering.renderer import render_report_with_bundle
 import sys
@@ -52,15 +52,6 @@ class AutoReportMagics(Magics):
                 full_code = code_cell
         except Exception:
             full_code = code_cell
-
-
-        # Подготовим namespace: если нет переменных y_true_... но есть модели и X,y — автогенерируем предсказания
-        try:
-            inject_autopreds(user_ns)
-        except Exception:
-            # не критично
-            pass
-
 
         run = run_experiment(
             code=full_code, namespace=user_ns, run_name=args.name,

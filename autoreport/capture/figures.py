@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 from ..core.utils import sha256_file
 from ..core.models import Artifact
-
+import io
 
 class FigureManager:
     
@@ -47,3 +47,14 @@ class FigureManager:
                 size_bytes=final_path.stat().st_size
             ))
         return artifacts
+    
+
+    def capture_all_figures() -> list[Artifact]:
+        arts = []
+        for num in plt.get_fignums():
+            fig = plt.figure(num)
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png")
+            buf.seek(0)
+            arts.append(Artifact.from_image(buf.getvalue(), name=f"figure_{num}"))
+        return arts
