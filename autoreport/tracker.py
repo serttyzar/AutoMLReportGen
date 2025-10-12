@@ -8,11 +8,10 @@ from .capture.figures import FigureManager
 from .capture.runtime import RuntimeCapture
 from .capture.variables import discover_models_and_data
 from .core.models import Run, Artifact, Metric
+from .capture.lineage import collect_namespace_lineage
+
 
 def _model_info(obj: Any) -> Dict[str, Any]:
-    """
-    Попытка получить информацию о модели: тип и параметры (если доступны).
-    """
     info: Dict[str, Any] = {"type": obj.__class__.__name__}
     try:
         if hasattr(obj, "get_params"):
@@ -23,32 +22,35 @@ def _model_info(obj: Any) -> Dict[str, Any]:
         info["params"] = {}
     return info
 
+
 def run_experiment(code: str, namespace: Dict[str, Any], run_name: str,
                    stdout: str, stderr: str, error: str | None, duration_s: float,
                    artifacts: Optional[List[Artifact]] = None) -> Run:
     """
-    Создаёт Run. Если 'artifacts' переданы (например, из RuntimeCapture), использует их.
-    Иначе попытается сам захватить текущие фигуры.
-    Также собирает модели + метрики и группирует метрики по моделям.
+    Создаёт Run с привязкой моделей и метрик.
+    Поддерживает scikit-learn и PyTorch (через collect_namespace_lineage).
     """
     run_id = uuid.uuid4().hex[:10]
 
-    # Захват пользовательских объектов моделей и данных (mapping keyed by figure_N)
+    # --- 1️⃣ Получаем mapping моделей к данным ---
     mapping = discover_models_and_data(namespace)
+    lineage_map = collect_namespace_lineage(namespace)
+    for name, src in lineage_map.items():
+        if "model" in src and hasattr(src["model"], "__class__"):
+            mapping.setdefault(name, {"model": src["model"].__class__.__name__, "data": None})
 
-    # Собираем метаданные по моделям (type + params)
+    # --- 2️⃣ Метаданные по моделям ---
     models_meta: Dict[str, Dict[str, Any]] = {}
     for art_key, pair in mapping.items():
         mname = pair.get("model")
         if mname and mname in namespace and not inspect.isclass(namespace[mname]):
             models_meta[mname] = _model_info(namespace[mname])
 
-    # Собираем артефакты (figures). Если передали извне — используем их, иначе захватим сами.
+    # --- 3️⃣ Артефакты (фигуры) ---
     if artifacts is None:
-        figman = FigureManager()
-        artifacts = figman.capture_current_figures()
+        fm = FigureManager()
+        artifacts = fm.capture_current_figures()
     else:
-        # нормализуем — приводим dict -> Artifact при необходимости
         normalized: List[Artifact] = []
         for a in artifacts:
             if isinstance(a, Artifact):
@@ -57,70 +59,63 @@ def run_experiment(code: str, namespace: Dict[str, Any], run_name: str,
                 try:
                     normalized.append(Artifact(**a))
                 except Exception:
-                    # если не подошло — пропускаем
                     pass
         artifacts = normalized
 
-    # Привязываем каждый артефакт к модели/данным, если возможно
+    # Привязываем артефакты к моделям
     for art in artifacts:
         link = mapping.get(art.name)
         if link:
             art.meta = {"model": link.get("model"), "data": link.get("data")}
 
-    # Автоматический сбор метрик из namespace (эвристики):
-    # - скаляры (int/float)
-    # - dict со скалярными значениями
+    # --- 4️⃣ Сбор метрик ---
     metrics: Dict[str, Metric] = {}
     for k, v in namespace.items():
         if k.startswith("_"):
             continue
-        # pydantic Metric
-        try:
-            if isinstance(v, Metric):
-                metrics[k] = v
-                continue
-        except Exception:
-            pass
 
-        # скаляры
-        if isinstance(v, (int, float)):
-            matched_model = next((m for m in models_meta.keys() if m in k), None)
-            short = k.replace(matched_model, "").strip("_") if matched_model else k
-            key = f"{matched_model}/{short or k}" if matched_model else k
-            metrics[key] = Metric(name=short or k, value=float(v))
+        src = lineage_map.get(k)
+        model_name = src.get("model").__class__.__name__ if src and "model" in src else None
+
+        # Если это Metric
+        if isinstance(v, Metric):
+            key = f"{model_name}/{v.name}" if model_name else v.name
+            metrics[key] = v
             continue
 
-        # словари со скалярными значениями
+        # Если скаляр
+        if isinstance(v, (int, float)):
+            key = f"{model_name}/{k}" if model_name else k
+            metrics[key] = Metric(name=k, value=float(v))
+            continue
+
+        # Словарь со скалярами
         if isinstance(v, dict) and v:
             if all(isinstance(x, (int, float)) for x in v.values()):
-                matched_model = next((m for m in models_meta.keys() if m in k), None)
                 for subk, subv in v.items():
-                    if matched_model:
-                        key = f"{matched_model}/{subk}"
-                    else:
-                        key = f"{k}/{subk}"
+                    key = f"{model_name}/{subk}" if model_name else f"{k}/{subk}"
                     metrics[key] = Metric(name=subk, value=float(subv))
                 continue
 
-    # Группируем метрики по моделям (упростит шаблон)
+    # --- 5️⃣ Группировка метрик по моделям ---
     grouped_metrics: Dict[str, List[Dict[str, Any]]] = {}
     for key, met in metrics.items():
         if "/" in key:
             model_name, _ = key.split("/", 1)
             grouped_metrics.setdefault(model_name, []).append({"key": key, "name": met.name, "value": met.value})
         else:
-            # если модель лишь одна — приписывать к ней
             if len(models_meta) == 1:
                 sole = next(iter(models_meta.keys()))
                 grouped_metrics.setdefault(sole, []).append({"key": key, "name": met.name, "value": met.value})
             else:
                 grouped_metrics.setdefault("ungrouped", []).append({"key": key, "name": met.name, "value": met.value})
 
+    # --- 6️⃣ Собираем Run ---
     run = Run(
         id=run_id,
         name=run_name,
         duration_s=duration_s,
-        params={},  # оставляем под user
+        params={},
         metrics=metrics,
         series={},
         artifacts=artifacts,

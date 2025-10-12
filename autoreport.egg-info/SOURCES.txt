@@ -13,6 +13,7 @@ autoreport.egg-info/top_level.txt
 autoreport/analysis/__init__.py
 autoreport/capture/__init__.py
 autoreport/capture/figures.py
+autoreport/capture/lineage.py
 autoreport/capture/runtime.py
 autoreport/capture/variables.py
 autoreport/core/__init__.py
