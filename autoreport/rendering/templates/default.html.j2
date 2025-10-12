@@ -77,21 +77,21 @@
             </div>
 
             <div class="muted" style="margin-top:10px">Графики:</div>
-            {% set figs = [] %}
+            {% set model_figs = [] %}
             {% for art in run.artifacts %}
-              {% if art.kind == "figure" %}
-                {% set _ = figs.append(art) %}
+              {% if art.kind == "figure" and art.meta and art.meta.get("model") == name %}
+                {% set _ = model_figs.append(art) %}
               {% endif %}
             {% endfor %}
 
-            {% if figs %}
+            {% if model_figs %}
               <div class="figures" style="margin-top:8px">
-                {% for art in figs %}
+                {% for art in model_figs %}
                   <img class="figure" src="{{ art.path }}" alt="{{ art.name }}">
                 {% endfor %}
               </div>
             {% else %}
-              <div class="muted">Нет графиков</div>
+              <div class="muted">Нет графиков/div>
             {% endif %}
           </div>
         {% endfor %}

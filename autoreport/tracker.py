@@ -2,16 +2,18 @@
 from __future__ import annotations
 from typing import Dict, Any, List, Optional
 import uuid
-from pathlib import Path
 import inspect
 from .capture.figures import FigureManager
 from .capture.runtime import RuntimeCapture
-from .capture.variables import discover_models_and_data
+from .capture.lineage import build_lineage_from_code, classify_variables
 from .core.models import Run, Artifact, Metric
-from .capture.lineage import collect_namespace_lineage
+from .capture.lineage import extract_plot_variable_mapping
 
 
 def _model_info(obj: Any) -> Dict[str, Any]:
+    """
+    Получение информации о модели: тип и параметры (если доступны)
+    """
     info: Dict[str, Any] = {"type": obj.__class__.__name__}
     try:
         if hasattr(obj, "get_params"):
@@ -26,32 +28,32 @@ def _model_info(obj: Any) -> Dict[str, Any]:
 def run_experiment(code: str, namespace: Dict[str, Any], run_name: str,
                    stdout: str, stderr: str, error: str | None, duration_s: float,
                    artifacts: Optional[List[Artifact]] = None) -> Run:
-    """
-    Создаёт Run с привязкой моделей и метрик.
-    Поддерживает scikit-learn и PyTorch (через collect_namespace_lineage).
-    """
+    """Создаёт Run с AST-based lineage tracking."""
+    
     run_id = uuid.uuid4().hex[:10]
-
-    # --- 1️⃣ Получаем mapping моделей к данным ---
-    mapping = discover_models_and_data(namespace)
-    lineage_map = collect_namespace_lineage(namespace)
-    for name, src in lineage_map.items():
-        if "model" in src and hasattr(src["model"], "__class__"):
-            mapping.setdefault(name, {"model": src["model"].__class__.__name__, "data": None})
-
-    # --- 2️⃣ Метаданные по моделям ---
+    
+    # 1. AST-анализ: строим граф зависимостей
+    graph = build_lineage_from_code(code)
+    var_to_model = classify_variables(namespace, graph)
+    
+    # 2. Находим модели
+    models = {k: v for k, v in namespace.items() 
+              if hasattr(v, "predict") and not inspect.isclass(v) and not k.startswith("_")}
+    
     models_meta: Dict[str, Dict[str, Any]] = {}
-    for art_key, pair in mapping.items():
-        mname = pair.get("model")
-        if mname and mname in namespace and not inspect.isclass(namespace[mname]):
-            models_meta[mname] = _model_info(namespace[mname])
-
-    # --- 3️⃣ Артефакты (фигуры) ---
+    for mname, mobj in models.items():
+        models_meta[mname] = _model_info(mobj)
+    
+    # 3. Обработка артефактов
     if artifacts is None:
+        from .capture.figures import FigureManager, _GLOBAL_FIG_BUFFER
         fm = FigureManager()
-        artifacts = fm.capture_current_figures()
+        arts_now = fm.capture_current_figures()
+        all_arts = list({a.path: a for a in (arts_now + _GLOBAL_FIG_BUFFER)}.values())
+        artifacts = all_arts
+        _GLOBAL_FIG_BUFFER.clear()  # КРИТИЧНО!
     else:
-        normalized: List[Artifact] = []
+        normalized = []
         for a in artifacts:
             if isinstance(a, Artifact):
                 normalized.append(a)
@@ -61,68 +63,59 @@ def run_experiment(code: str, namespace: Dict[str, Any], run_name: str,
                 except Exception:
                     pass
         artifacts = normalized
-
+    
     # Привязываем артефакты к моделям
+    plot_to_model = extract_plot_variable_mapping(code, graph)
+    
     for art in artifacts:
-        link = mapping.get(art.name)
-        if link:
-            art.meta = {"model": link.get("model"), "data": link.get("data")}
-
-    # --- 4️⃣ Сбор метрик ---
+        if art.kind == "figure":
+            # Извлекаем номер из имени: auto_1 -> 1
+            try:
+                if art.name.startswith("auto_"):
+                    plot_idx = int(art.name.split("_")[1])
+                    model_owner = plot_to_model.get(plot_idx)
+                    if model_owner:
+                        art.meta = {"model": model_owner}
+                    else:
+                        # Fallback: если AST не нашел - ставим ungrouped
+                        art.meta = {"model": "ungrouped"}
+            except (ValueError, IndexError):
+                pass
+    
+    # 4. Группировка метрик через AST-граф
     metrics: Dict[str, Metric] = {}
-    for k, v in namespace.items():
-        if k.startswith("_"):
-            continue
-
-        src = lineage_map.get(k)
-        model_name = src.get("model").__class__.__name__ if src and "model" in src else None
-
-        # Если это Metric
-        if isinstance(v, Metric):
-            key = f"{model_name}/{v.name}" if model_name else v.name
-            metrics[key] = v
-            continue
-
-        # Если скаляр
-        if isinstance(v, (int, float)):
-            key = f"{model_name}/{k}" if model_name else k
-            metrics[key] = Metric(name=k, value=float(v))
-            continue
-
-        # Словарь со скалярами
-        if isinstance(v, dict) and v:
-            if all(isinstance(x, (int, float)) for x in v.values()):
-                for subk, subv in v.items():
-                    key = f"{model_name}/{subk}" if model_name else f"{k}/{subk}"
-                    metrics[key] = Metric(name=subk, value=float(subv))
-                continue
-
-    # --- 5️⃣ Группировка метрик по моделям ---
     grouped_metrics: Dict[str, List[Dict[str, Any]]] = {}
-    for key, met in metrics.items():
-        if "/" in key:
-            model_name, _ = key.split("/", 1)
-            grouped_metrics.setdefault(model_name, []).append({"key": key, "name": met.name, "value": met.value})
-        else:
-            if len(models_meta) == 1:
-                sole = next(iter(models_meta.keys()))
-                grouped_metrics.setdefault(sole, []).append({"key": key, "name": met.name, "value": met.value})
-            else:
-                grouped_metrics.setdefault("ungrouped", []).append({"key": key, "name": met.name, "value": met.value})
-
-    # --- 6️⃣ Собираем Run ---
+    
+    for var_name, val in namespace.items():
+        if var_name.startswith("_"):
+            continue
+            
+        model_owner = var_to_model.get(var_name, "ungrouped")
+        
+        if isinstance(val, (int, float)):
+            metrics[var_name] = Metric(name=var_name, value=float(val))
+            grouped_metrics.setdefault(model_owner, []).append({
+                "key": var_name, "name": var_name, "value": float(val)
+            })
+            
+        elif isinstance(val, dict) and val:
+            if all(isinstance(x, (int, float)) for x in val.values()):
+                for subk, subv in val.items():
+                    full_key = f"{var_name}/{subk}"
+                    metrics[full_key] = Metric(name=subk, value=float(subv))
+                    grouped_metrics.setdefault(model_owner, []).append({
+                        "key": full_key, "name": subk, "value": float(subv)
+                    })
+    
+    # 5. Собираем Run
     run = Run(
-        id=run_id,
-        name=run_name,
-        duration_s=duration_s,
-        params={},
-        metrics=metrics,
-        series={},
-        artifacts=artifacts,
-        code=code,
-        stdout=stdout,
-        stderr=stderr,
-        error=error,
-        meta={"mapping": mapping, "models": models_meta, "grouped_metrics": grouped_metrics}
+        id=run_id, name=run_name, duration_s=duration_s, params={},
+        metrics=metrics, series={}, artifacts=artifacts,
+        code=code, stdout=stdout, stderr=stderr, error=error,
+        meta={
+            "models": models_meta,
+            "grouped_metrics": grouped_metrics,
+            "lineage_graph": {k: list(v.assigned_from) for k, v in graph.nodes.items()}
+        }
     )
     return run
