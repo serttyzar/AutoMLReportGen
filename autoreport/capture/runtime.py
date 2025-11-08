@@ -1,4 +1,3 @@
-# autoreport/capture/runtime.py
 from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
 import time

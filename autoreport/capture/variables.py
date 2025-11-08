@@ -1,4 +1,3 @@
-# autoreport/capture/variables.py
 from typing import Dict, Any
 import inspect
 import matplotlib.pyplot as plt

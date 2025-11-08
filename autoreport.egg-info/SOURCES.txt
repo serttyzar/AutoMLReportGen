@@ -1,6 +1,5 @@
 pyproject.toml
 autoreport/__init__.py
-autoreport/cli.py
 autoreport/magics.py
 autoreport/session.py
 autoreport/tracker.py
@@ -10,7 +9,6 @@ autoreport.egg-info/dependency_links.txt
 autoreport.egg-info/entry_points.txt
 autoreport.egg-info/requires.txt
 autoreport.egg-info/top_level.txt
-autoreport/analysis/__init__.py
 autoreport/capture/__init__.py
 autoreport/capture/figures.py
 autoreport/capture/lineage.py
@@ -18,12 +16,9 @@ autoreport/capture/runtime.py
 autoreport/capture/variables.py
 autoreport/core/__init__.py
 autoreport/core/models.py
-autoreport/core/pipline.py
 autoreport/core/utils.py
 autoreport/io/__init__.py
 autoreport/io/bundle.py
 autoreport/io/json_source.py
-autoreport/ml/__init__.py
-autoreport/ml/summarizer.py
 autoreport/rendering/__init__.py
 autoreport/rendering/renderer.py

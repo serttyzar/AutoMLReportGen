@@ -1,4 +1,3 @@
-# autoreport/capture/figures.py
 from __future__ import annotations
 from pathlib import Path
 from typing import List
@@ -58,8 +57,6 @@ class FigureManager:
                 artifacts.append(art)
         return artifacts
 
-
-# --- 1️⃣ Monkey-patch: display hook для Jupyter --- #
 try:
     import builtins
     import IPython.display as ipd
@@ -80,8 +77,6 @@ try:
 except Exception:
     pass
 
-
-# --- 2️⃣ Monkey-patch: plt.show() для не-Jupyter --- #
 import matplotlib
 
 _original_show = matplotlib.pyplot.show
