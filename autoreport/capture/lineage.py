@@ -1,8 +1,3 @@
-"""
-AST-based lineage tracker для автоматической привязки метрик и графиков к моделям.
-Парсит код ноутбука и строит граф зависимостей переменных.
-"""
-
 from __future__ import annotations
 import ast
 from typing import Dict, Set, Optional, Any, List
@@ -54,7 +49,6 @@ class DependencyGraph:
                 if node.parent_obj:
                     return node.parent_obj
             
-            # Приоритизируем зависимости: сначала те, у которых есть method_call
             deps_with_methods = []
             deps_without_methods = []
             
@@ -63,8 +57,6 @@ class DependencyGraph:
                     deps_with_methods.append(dep)
                 else:
                     deps_without_methods.append(dep)
-            
-            # Добавляем в очередь: сначала с методами, потом без
             queue.extend(deps_with_methods)
             queue.extend(deps_without_methods)
             
@@ -81,7 +73,6 @@ class NotebookAnalyzer(ast.NodeVisitor):
         self.current_parent: Optional[str] = None
         
     def visit_Assign(self, node: ast.Assign):
-        """Обрабатываем присваивание: a = expr"""
         self.current_deps = set()
         self.current_method = None
         self.current_parent = None
@@ -113,7 +104,6 @@ class NotebookAnalyzer(ast.NodeVisitor):
                 self.current_method = node.func.attr
                 self.current_deps.add(node.func.value.id)
         
-        # Собираем зависимости из аргументов
         for arg in node.args:
             self.visit(arg)
         for kw in node.keywords:
@@ -136,7 +126,6 @@ class PlotCallAnalyzer(ast.NodeVisitor):
         """Ищем вызовы plt.plot, plt.hist, plt.scatter и т.д."""
         is_plot_call = False
         
-        # plt.hist(...) или matplotlib.pyplot.hist(...)
         if isinstance(node.func, ast.Attribute):
             if isinstance(node.func.value, ast.Name):
                 if node.func.value.id in ['plt', 'pyplot']:
@@ -146,7 +135,6 @@ class PlotCallAnalyzer(ast.NodeVisitor):
                         is_plot_call = True
                         
         if is_plot_call:
-            # Собираем переменные из аргументов
             self.current_call_args = set()
             for arg in node.args:
                 self._collect_names(arg)
@@ -165,10 +153,8 @@ class PlotCallAnalyzer(ast.NodeVisitor):
         if isinstance(node, ast.Name):
             self.current_call_args.add(node.id)
         elif isinstance(node, ast.Subscript):
-            # y_prob[:, 1] -> y_prob
             self._collect_names(node.value)
         elif isinstance(node, ast.Attribute):
-            # obj.attr -> obj
             self._collect_names(node.value)
         elif isinstance(node, (ast.BinOp, ast.UnaryOp)):
             for child in ast.iter_child_nodes(node):
@@ -183,7 +169,6 @@ def extract_plot_variable_mapping(code: str, graph: DependencyGraph) -> Dict[int
     plot_index = порядковый номер вызова plt.* в коде (1-based)
     """
     try:
-        # Очищаем код от магий
         cleaned_lines = []
         for line in code.split("\n"):
             if line.strip().startswith(("%%", "%")) or "get_ipython()" in line:
@@ -198,7 +183,6 @@ def extract_plot_variable_mapping(code: str, graph: DependencyGraph) -> Dict[int
         
         mapping = {}
         for idx, call_info in enumerate(analyzer.plot_calls, start=1):
-            # Находим модель для любой переменной из вызова
             model_found = None
             for var in call_info["variables"]:
                 origin = graph.get_origin_model(var)
@@ -215,12 +199,11 @@ def extract_plot_variable_mapping(code: str, graph: DependencyGraph) -> Dict[int
 
 def build_lineage_from_code(code: str) -> DependencyGraph:
     """Строит граф зависимостей из кода."""
-    # Очищаем от IPython магий
     cleaned_lines = []
     for line in code.split("\n"):
         stripped = line.strip()
         if stripped.startswith(("%%", "%")) or "get_ipython()" in stripped:
-            cleaned_lines.append("")  # Пустая строка сохраняет номера
+            cleaned_lines.append("")
         else:
             cleaned_lines.append(line)
     
