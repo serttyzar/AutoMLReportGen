@@ -84,9 +84,15 @@ _original_show = matplotlib.pyplot.show
 
 def _patched_show(*args, **kwargs):
     fm = FigureManager()
-    arts = fm.capture_current_figures()
-    if arts:
-        _GLOBAL_FIG_BUFFER.extend(arts)
+    # Сохраняем с именами auto_N для совместимости с tracker.py
+    artifacts: List[Artifact] = []
+    for i, num in enumerate(plt.get_fignums(), start=len(_GLOBAL_FIG_BUFFER)+1):
+        fig = plt.figure(num)
+        art = fm._save_fig(fig, f"auto_{i}", "png", 150)
+        if art:
+            artifacts.append(art)
+    if artifacts:
+        _GLOBAL_FIG_BUFFER.extend(artifacts)
     return _original_show(*args, **kwargs)
 
 

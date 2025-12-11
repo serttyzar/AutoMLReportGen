@@ -69,9 +69,9 @@ def run_experiment(code: str, namespace: Dict[str, Any], run_name: str,
     
     for art in artifacts:
         if art.kind == "figure":
-            # Извлекаем номер из имени: auto_1 -> 1
+            # Извлекаем номер из имени: auto_1 -> 1 или figure_1 -> 1
             try:
-                if art.name.startswith("auto_"):
+                if art.name.startswith("auto_") or art.name.startswith("figure_"):
                     plot_idx = int(art.name.split("_")[1])
                     model_owner = plot_to_model.get(plot_idx)
                     if model_owner:
@@ -79,8 +79,11 @@ def run_experiment(code: str, namespace: Dict[str, Any], run_name: str,
                     else:
                         # Fallback: если AST не нашел - ставим ungrouped
                         art.meta = {"model": "ungrouped"}
+                else:
+                    # Если имя не соответствует шаблону - ungrouped
+                    art.meta = {"model": "ungrouped"}
             except (ValueError, IndexError):
-                pass
+                art.meta = {"model": "ungrouped"}
     
     # 4. Группировка метрик через AST-граф
     metrics: Dict[str, Metric] = {}

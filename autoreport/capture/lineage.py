@@ -49,13 +49,24 @@ class DependencyGraph:
             node = self.nodes[current]
             
             # Если это результат model.predict() - нашли модель
-            if node.method_call in ['predict', 'predict_proba', 'fit', 
+            if node.method_call in ['predict', 'predict_proba', 'fit',
                                    'transform', 'score', 'decision_function']:
                 if node.parent_obj:
                     return node.parent_obj
-                    
-            # Продолжаем поиск по зависимостям
-            queue.extend(node.assigned_from)
+            
+            # Приоритизируем зависимости: сначала те, у которых есть method_call
+            deps_with_methods = []
+            deps_without_methods = []
+            
+            for dep in node.assigned_from:
+                if dep in self.nodes and self.nodes[dep].method_call:
+                    deps_with_methods.append(dep)
+                else:
+                    deps_without_methods.append(dep)
+            
+            # Добавляем в очередь: сначала с методами, потом без
+            queue.extend(deps_with_methods)
+            queue.extend(deps_without_methods)
             
         return None
 
@@ -95,13 +106,14 @@ class NotebookAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
         
     def visit_Call(self, node: ast.Call):
-        """Обрабатываем вызовы: obj.method(args)"""
+        """Обрабатываем вызовы: obj.method(args) и func(args)"""
         if isinstance(node.func, ast.Attribute):
             if isinstance(node.func.value, ast.Name):
                 self.current_parent = node.func.value.id
                 self.current_method = node.func.attr
                 self.current_deps.add(node.func.value.id)
-                
+        
+        # Собираем зависимости из аргументов
         for arg in node.args:
             self.visit(arg)
         for kw in node.keywords:
